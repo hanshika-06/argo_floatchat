@@ -1,0 +1,15 @@
+# Node dependencies
+node_modules/
+frontend/node_modules/
+
+# Cache
+.cache/
+frontend/node_modules/.cache/
+
+# Build output
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
