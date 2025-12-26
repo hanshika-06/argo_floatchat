@@ -205,16 +205,12 @@ This project demonstrates:
 **Domain:** Data Science · Ocean Analytics · AI Systems
 **Purpose:** Academic · Portfolio · Interview-ready project
 
-
-```
 <img width="1905" height="995" alt="Screenshot 2025-12-26 213501" src="https://github.com/user-attachments/assets/5061685b-4f17-4cb5-90bb-a8f3415a4e45" />
 
 <img width="1919" height="998" alt="Screenshot 2025-12-26 213529" src="https://github.com/user-attachments/assets/e9000211-73e1-4deb-b9f2-61409b6d7391" />
 
 <img width="1919" height="965" alt="Screenshot 2025-12-26 213603" src="https://github.com/user-attachments/assets/055fb485-8969-4977-8248-5c16f04fc485" />
-```
----
-
+-
 ## ✅ Final Verdict
 
 ✔ Content: **Excellent**  
