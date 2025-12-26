@@ -3,9 +3,9 @@ import plotly.express as px
 import os
 import pandas as pd
 
-# -----------------------------
-# Build SAFE absolute file path
-# -----------------------------
+# -------------------------------------------------
+# SAFE absolute file path (project-independent)
+# -------------------------------------------------
 
 CURRENT_FILE = os.path.abspath(__file__)
 TOOL_LAYER_DIR = os.path.dirname(CURRENT_FILE)
@@ -13,19 +13,27 @@ PROJECT_ROOT = os.path.dirname(TOOL_LAYER_DIR)
 
 DATA_PATH = os.path.join(PROJECT_ROOT, "data", "indian_ocean_index.nc")
 
-# -----------------------------
-# Data loading
-# -----------------------------
+# -------------------------------------------------
+# Load NetCDF dataset
+# -------------------------------------------------
 def load_dataset():
+    """
+    Loads the NetCDF dataset using xarray.
+    """
     return xr.open_dataset(DATA_PATH)
 
-# -----------------------------
-# Dataset summary (numeric only)
-# -----------------------------
+# -------------------------------------------------
+# Dataset summary (numeric variables only)
+# -------------------------------------------------
 def get_summary(ds):
+    """
+    Computes mean values for numeric variables only.
+    Used for KPIs and chatbot summary queries.
+    """
     summary = {}
 
     for var in ds.data_vars:
+        # Skip non-numeric variables
         if ds[var].dtype.kind not in "fi":
             continue
 
@@ -40,20 +48,24 @@ def get_summary(ds):
 
     return summary
 
-# -----------------------------
-# Vertical profile (PRESSURE)
-# -----------------------------
+# -------------------------------------------------
+# Vertical profile plot (Pressure vs Variable)
+# -------------------------------------------------
 def plot_vertical_profile(ds, variable):
+    """
+    Plots an ARGO-style vertical profile using pressure.
+    """
     df = ds.to_dataframe().reset_index()
 
-    if "pressure" not in df.columns:
+    # Safety check
+    if "pressure" not in df.columns or variable not in df.columns:
         return None
 
     fig = px.line(
         df,
         y="pressure",
         x=variable,
-        title=f"{variable.upper()} Vertical Profile",
+        title=f"{variable.upper()} Vertical Profile"
     )
 
     # Oceanographic convention: surface at top
@@ -66,10 +78,13 @@ def plot_vertical_profile(ds, variable):
 
     return fig
 
-# -----------------------------
-# Time-series trend (SAFE)
-# -----------------------------
+# -------------------------------------------------
+# Time-series trend (optional support)
+# -------------------------------------------------
 def plot_trend(ds, variable):
+    """
+    Plots time-series trend if time coordinate exists.
+    """
     if "time" not in ds.coords:
         return None
 
@@ -82,10 +97,13 @@ def plot_trend(ds, variable):
         title=f"{variable.upper()} Trend Over Time"
     )
 
-# -----------------------------
-# Yearly average (SAFE)
-# -----------------------------
+# -------------------------------------------------
+# Yearly average (optional support)
+# -------------------------------------------------
 def yearly_average(ds, variable):
+    """
+    Computes yearly averages if time coordinate exists.
+    """
     if "time" not in ds.coords:
         return None
 
@@ -100,3 +118,41 @@ def yearly_average(ds, variable):
         y=variable,
         title=f"{variable.upper()} Yearly Average"
     )
+
+def plot_location_map_from_csv():
+    import pandas as pd
+    import plotly.express as px
+    import os
+
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    csv_path = os.path.join(PROJECT_ROOT, "data", "indian_ocean_index.csv")
+
+    if not os.path.exists(csv_path):
+        return None
+
+    df = pd.read_csv(csv_path)
+
+    # 🔴 CRITICAL FIX: force numeric conversion
+    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
+    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
+
+    df = df.dropna(subset=["latitude", "longitude"])
+
+    if df.empty:
+        return None
+
+    fig = px.scatter_geo(
+        df,
+        lat="latitude",
+        lon="longitude",
+        title="ARGO Float Locations",
+        opacity=0.7
+    )
+
+    fig.update_geos(
+        projection_type="natural earth",
+        showcountries=True,
+        showcoastlines=True
+    )
+
+    return fig

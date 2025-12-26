@@ -1,24 +1,30 @@
-import os
 from langchain_groq import ChatGroq
 
-def route_query(user_query: str) -> str:
-    api_key = os.getenv("GROQ_API_KEY")
+llm = ChatGroq(
+    groq_api_key="YOUR_GROQ_API_KEY",
+    model_name="llama3-70b-8192"
+)
 
-    if not api_key:
-        raise RuntimeError(
-            "GROQ_API_KEY is not set. Please set it as an environment variable."
-        )
+def llm_route_query(user_query):
+    prompt = f"""
+You are an ocean data assistant.
 
-    llm = ChatGroq(
-        api_key=api_key,
-        model="llama3-8b-8192"
-    )
+User query:
+"{user_query}"
 
-    prompt = (
-        "Classify the user intent into one of the following labels:\n"
-        "TREND, PROFILE, DEPTH, SUMMARY.\n\n"
-        f"User query: {user_query}\n"
-        "Return ONLY the label."
-    )
+Classify the intent and output JSON ONLY in this format:
 
-    return llm.invoke(prompt).content.strip()
+{{
+  "intent": "MAP | PROFILE | SUMMARY",
+  "variable": "temperature | salinity | oxygen | nitrate | ph | chlorophyll | backscattering | null"
+}}
+
+Rules:
+- MAP → location / where / map
+- PROFILE → depth / profile / vertical
+- SUMMARY → summary / overview
+- variable is null for MAP and SUMMARY
+"""
+
+    response = llm.invoke(prompt).content
+    return response
