@@ -119,40 +119,72 @@ def yearly_average(ds, variable):
         title=f"{variable.upper()} Yearly Average"
     )
 
+# ---------------------------------------
+# Data-driven condition summary
+# ---------------------------------------
+def compute_ocean_condition(ds):
+    summary = {}
+
+    if "pressure" not in ds:
+        return summary
+
+    surface = ds.where(ds["pressure"] <= 100, drop=True)
+    deep = ds.where(ds["pressure"] >= 1000, drop=True)
+
+    for var in ["temperature", "oxygen", "salinity"]:
+        if var in ds:
+            try:
+                summary[var] = {
+                    "surface": float(surface[var].mean().values),
+                    "deep": float(deep[var].mean().values)
+                }
+            except Exception:
+                pass
+
+    return summary
+
 def plot_location_map_from_csv():
     import pandas as pd
     import plotly.express as px
     import os
 
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    csv_path = os.path.join(PROJECT_ROOT, "data", "indian_ocean_index.csv")
+    CSV_PATH = os.path.join(PROJECT_ROOT, "data", "indian_ocean_index.csv")
 
-    if not os.path.exists(csv_path):
+    # Load CSV
+    df = pd.read_csv(CSV_PATH)
+
+    # Normalize column names
+    df.columns = df.columns.str.lower().str.strip()
+
+    # Safety check
+    if "latitude" not in df.columns or "longitude" not in df.columns:
         return None
 
-    df = pd.read_csv(csv_path)
-
-    # 🔴 CRITICAL FIX: force numeric conversion
-    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
-    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
-
+    # Drop invalid rows
     df = df.dropna(subset=["latitude", "longitude"])
 
-    if df.empty:
-        return None
-
+    # Plot float locations as POINTS
     fig = px.scatter_geo(
         df,
         lat="latitude",
         lon="longitude",
         title="ARGO Float Locations",
-        opacity=0.7
+        opacity=0.7,
+        height=500
     )
 
     fig.update_geos(
         projection_type="natural earth",
         showcountries=True,
-        showcoastlines=True
+        showcoastlines=True,
+        showland=True,
+        landcolor="rgb(243,243,243)"
+    )
+
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=40, b=0)
     )
 
     return fig
+

@@ -1,21 +1,61 @@
-# intelligence_layer/chatbot.py
+import os
+import json
+from langchain_groq import ChatGroq
 
-def route_query(query: str):
-    q = query.lower()
+# ---------------------------------------
+# Initialize LLM
+# ---------------------------------------
+llm = ChatGroq(
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+    model_name="llama-3.1-8b-instant"
+)
 
-    # Map-related queries
-    if "map" in q or "location" in q or "where" in q:
-        return {"intent": "MAP"}
+SUPPORTED_VARIABLES = [
+    "temperature", "salinity",
+    "oxygen", "nitrate", "ph",
+    "chlorophyll", "backscattering"
+]
 
-    # Profile / depth queries
-    if "profile" in q or "depth" in q or "vertical" in q:
-        for var in ["temperature", "salinity", "oxygen", "chlorophyll", "nitrate"]:
-            if var in q:
-                return {"intent": "PROFILE", "variable": var}
-        return {"intent": "PROFILE", "variable": None}
+# ---------------------------------------
+# LLM-based intent router
+# ---------------------------------------
+def route_query(user_query: str) -> dict:
+    prompt = f"""
+You are an oceanography assistant.
 
-    # Summary queries
-    if "summary" in q or "mean" in q or "average" in q:
-        return {"intent": "SUMMARY"}
+Given a user query, extract intent and variable.
 
-    return {"intent": "UNKNOWN"}
+Valid intents:
+- PROFILE
+- PROFILE_RANGE
+- MAP
+- SUMMARY
+- CONDITION
+
+Valid variables:
+{SUPPORTED_VARIABLES}
+
+Return ONLY valid JSON.
+
+Examples:
+User: Show oxygen profile
+{{"intent":"PROFILE","variable":"oxygen"}}
+
+User: Show oxygen between 0 and 500 dbar
+{{"intent":"PROFILE_RANGE","variable":"oxygen","min_depth":0,"max_depth":500}}
+
+User: Where are the floats?
+{{"intent":"MAP"}}
+
+User: What is the ocean condition in Indian Ocean?
+{{"intent":"CONDITION"}}
+
+User query:
+{user_query}
+"""
+
+    try:
+        response = llm.invoke(prompt).content.strip()
+        return json.loads(response)
+    except Exception:
+        return {"intent": "UNKNOWN"}

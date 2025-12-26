@@ -16,7 +16,8 @@ from tool_layer.data_tools import (
     load_dataset,
     plot_vertical_profile,
     get_summary,
-    plot_location_map_from_csv
+    plot_location_map_from_csv,
+    compute_ocean_condition
 )
 from intelligence_layer.chatbot import route_query
 
@@ -164,11 +165,7 @@ with tab2:
 
     fig = plot_location_map_from_csv()
     if fig:
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            key="map_tab"
-        )
+        st.plotly_chart(fig, use_container_width=True, key="map_tab")
     else:
         st.warning("Latitude / Longitude not available.")
 
@@ -188,25 +185,25 @@ with tab3:
     )
 
 # -------------------------------------------------
-# CHATBOT SECTION (RULE-BASED)
+# CHATBOT SECTION (LLM-POWERED)
 # -------------------------------------------------
 st.divider()
 st.subheader("💬 Ask FloatChat")
 
 user_query = st.text_input(
     "Ask about the data",
-    placeholder="Show oxygen profile / Where are the floats?"
+    placeholder="What is the ocean condition in the Indian Ocean?"
 )
 
 if user_query:
     result = route_query(user_query)
-
     intent = result.get("intent")
     chat_variable = result.get("variable")
 
-    st.caption("🧠 Interpreted Intent")
+    st.caption("🧠 LLM Interpretation")
     st.json(result)
 
+    # ---------- PROFILE ----------
     if intent == "PROFILE" and chat_variable in all_vars:
         fig = plot_vertical_profile(ds, chat_variable)
         st.plotly_chart(
@@ -216,24 +213,67 @@ if user_query:
         )
         st.info(generate_insight(chat_variable))
 
+    # ---------- PROFILE WITH RANGE ----------
+    elif intent == "PROFILE_RANGE" and chat_variable in all_vars:
+        min_d = result.get("min_depth", 0)
+        max_d = result.get("max_depth", 2000)
+
+        ds_range = ds.where(
+            (ds["pressure"] >= min_d) &
+            (ds["pressure"] <= max_d),
+            drop=True
+        )
+
+        fig = plot_vertical_profile(ds_range, chat_variable)
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            key=f"chat_profile_range_{chat_variable}"
+        )
+
+        st.info(
+            f"{chat_variable.capitalize()} shown between {min_d}–{max_d} dbar."
+        )
+
+    # ---------- MAP ----------
     elif intent == "MAP":
         fig = plot_location_map_from_csv()
         if fig:
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-                key="chat_map"
-            )
+            st.plotly_chart(fig, use_container_width=True, key="chat_map")
         else:
             st.warning("Location data not available.")
 
+    # ---------- CONDITION (NEW) ----------
+    elif intent == "CONDITION":
+        condition = compute_ocean_condition(ds)
+
+        st.subheader("🌊 Indian Ocean Condition Summary")
+
+        for var, values in condition.items():
+            st.markdown(
+                f"""
+**{var.capitalize()}**
+- Surface (0–100 dbar): `{values['surface']:.2f}`
+- Deep (>1000 dbar): `{values['deep']:.2f}`
+"""
+            )
+
+        st.success(
+            "The Indian Ocean shows strong vertical stratification with warm surface waters "
+            "and reduced oxygen at depth, indicating stable water masses and limited deep mixing."
+        )
+
+    # ---------- SUMMARY ----------
     elif intent == "SUMMARY":
         st.json(summary)
 
     else:
         st.warning(
             "I couldn't understand the question.\n\n"
-            "Try: temperature profile, oxygen depth, map, or summary."
+            "Try:\n"
+            "- What is the ocean condition?\n"
+            "- Show oxygen between 0 and 500 dbar\n"
+            "- Where are the floats?"
         )
 
 # -------------------------------------------------
@@ -244,6 +284,6 @@ with st.expander("🏗️ System Architecture"):
     st.markdown("""
     **Data Layer:** NetCDF + CSV  
     **Tool Layer:** Deterministic scientific functions  
-    **Intelligence Layer:** Rule-based NLP chatbot  
+    **Intelligence Layer:** LLM-based intent understanding  
     **Presentation Layer:** Streamlit + Plotly  
     """)
